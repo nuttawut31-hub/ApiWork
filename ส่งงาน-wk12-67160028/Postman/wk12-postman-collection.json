@@ -1,0 +1,137 @@
+{
+  "info": {
+    "name": "WK12 Validation and Rate Limiter",
+    "description": "Postman requests for Lab 12: Zod conditional validation and login brute-force rate limiting.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Validation",
+      "item": [
+        {
+          "name": "POST Student - International missing passportNumber (expect 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Returns 400 for missing passportNumber', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('Validation details identify passportNumber', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error.code).to.eql('VALIDATION_ERROR');",
+                  "  pm.expect(body.error.details.map((item) => item.field)).to.include('passportNumber');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Smith\",\n  \"major\": \"International Business\",\n  \"email\": \"missing-{{$guid}}@example.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/students",
+              "host": ["{{baseUrl}}"],
+              "path": ["students"]
+            }
+          }
+        },
+        {
+          "name": "POST Student - International with passportNumber (expect 201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Returns 201 when passportNumber is provided', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Student was created', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data).to.have.property('id');",
+                  "  pm.expect(body.data.email).to.include('valid-');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Smith\",\n  \"major\": \"International Business\",\n  \"email\": \"valid-{{$guid}}@example.com\",\n  \"passportNumber\": \"AB1234567\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/students",
+              "host": ["{{baseUrl}}"],
+              "path": ["students"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rate Limiter",
+      "item": [
+        {
+          "name": "POST Login - Brute force (first 5 expect 401, then 429)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const iteration = pm.info.iteration;",
+                  "const expectedStatus = iteration < 5 ? 401 : 429;",
+                  "pm.test('Status matches the configured login quota', function () {",
+                  "  pm.expect(pm.response.code).to.eql(expectedStatus);",
+                  "});",
+                  "if (iteration >= 5) {",
+                  "  pm.test('429 response includes complete RateLimit values', function () {",
+                  "    const value = pm.response.headers.get('RateLimit');",
+                  "    pm.expect(value).to.be.a('string');",
+                  "    pm.expect(value).to.include('limit=5');",
+                  "    pm.expect(value).to.include('remaining=0');",
+                  "    pm.expect(value).to.include('reset=');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{loginEmail}}\",\n  \"password\": \"{{wrongPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": []
+}
